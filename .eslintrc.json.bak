@@ -1,0 +1,10 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:eslint-plugin-next-on-pages/recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "plugins": ["eslint-plugin-next-on-pages"],
+  "parser": "@typescript-eslint/parser",
+  "ignorePatterns": ["src/!**/*", "/src/components/_utils.ts"]
+}

@@ -1,0 +1,19 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`CripToe test: #0 safeURL: true, toBase64: true > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #1 safeURL: false, toBase64: false > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #2 safeURL: true, toBase64: false > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #3 safeURL: false, toBase64: true > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #4 safeURL: undefined, toBase64: undefined > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #5 safeURL: undefined, toBase64: true > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #6 safeURL: undefined, toBase64: false > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #7 safeURL: true, toBase64: undefined > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;
+
+exports[`CripToe test: #8 safeURL: false, toBase64: undefined > Methods > Sha256 should return a hashed string 1`] = `"b470c52e7fef70b0b75f56f694e18b323a2e1f5fdcc649d0f9bcb6724dc8a29d"`;

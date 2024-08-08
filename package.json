@@ -1,0 +1,51 @@
+{
+  "name": "criptoe",
+  "version": "1.0.0",
+  "description": "A simple wrapper for the crypto.subtle api. Focus on AES-GCM.",
+  "type": "module",
+  "homepage": "https://github.com/theTyster/CripToe#readme",
+  "author": "thetyster",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theTyster/CripToe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/theTyster/CripToe/issues"
+  },
+  "keywords": [
+    "Encryption",
+    "crypto.subtle",
+    "wrapper"
+  ],
+  "main": "dist/CripToe.js",
+  "types": "dist/CripToe.d.ts",
+  "directories": {
+    "test": "test",
+    "src": "src"
+  },
+  "scripts": {
+    "_clear": "rimraf .build",
+    "_tsc": "tsc",
+    "_rollup": "rollup --config",
+    "test": "vitest",
+    "build": "npm run _clear && npm run _tsc && npm run _rollup"
+  },
+  "files": [
+    "dist/CripToe.js",
+    "dist/CripToe.d.ts",
+    "dist/CripToe.js.map"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.1",
+    "@typescript-eslint/parser": "^8.0.1",
+    "eslint": "^9.8.0",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.20.0",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.6.3",
+    "vitest": "^2.0.4"
+  }
+}
