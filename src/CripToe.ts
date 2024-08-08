@@ -11,7 +11,7 @@ export default class CripToe {
   /**
    * The message originally provided to the instance for encryption.
    **/
-  message: string;
+  message: string | undefined;
 
   /**
    * The message originally provided to the instance encoded into a Uint8Array.
@@ -22,16 +22,18 @@ export default class CripToe {
    * @param message - String to be encrypted or hashed.
    **/
   constructor(
-    message: string,
-    password?: string,
+    message?: string,
     opts?: { silenceWarnings?: boolean },
+    password?: string,
   ) {
-    if (message.length > 1260 && !opts?.silenceWarnings) {
-      console.warn(
-        `WARNING: The message supplied to ${this.constructor.name} is possibly too long for a URL.\nTests show that messages longer than 1,260 characters may exceed the maximum recommended length for a URL, which is 2,084 characters.\nlength:\n${message.length}\nmessage:\n${message}`,
-      );
+    if (message) {
+      if (message.length > 1260 && !opts?.silenceWarnings) {
+        console.warn(
+          `WARNING: The message supplied to ${this.constructor.name} is possibly too long for a URL.\nTests show that messages longer than 1,260 characters may exceed the maximum recommended length for a URL, which is 2,084 characters.\nlength:\n${message.length}\nmessage:\n${message}`,
+        );
+      }
+      this.message = message;
     }
-    this.message = message;
     this.encoded = new TextEncoder().encode(message);
 
     // ENSURES THAT THE CIPHER IS ONLY GENERATED ONCE.
@@ -148,8 +150,17 @@ export default class CripToe {
     return new TextDecoder("utf-8").decode(decrypted);
   }
 
+  /**
+   * Takes any given, (wrapped) key and unencrypts it with a provided wrapping
+   * key. The wrapping key is expected to be in JWK format.
+   * The unwrapped key then becomes the key used to encrypt and decrypt messages.
+   *
+   * NOTE: The unwrapped key and the wrapped key are stored in the instance and never
+   * returned out of it. Except for the first time a message is encrypted.
+   **/
   async unwrapKey(wrappedKey: ArrayBuffer, wrappingKeyString: string) {
     const wrappingKey = await this._parseJWk(wrappingKeyString);
+    console.log("wrapping\n", wrappingKey);
     const unWrappedKey = await this.CRYP.unwrapKey(
       "jwk",
       wrappedKey,
@@ -162,8 +173,25 @@ export default class CripToe {
         length: 256,
       },
       true,
-      ["decrypt"],
+      ["encrypt", "decrypt"],
     );
+    console.log("unwrapped\n", unWrappedKey);
+
+    //const unwrapped = await this.CRYP.unwrapKey(
+    //  "jwk",
+    //  wrappedKey,
+    //  wrappingKey,
+    //  {
+    //    name: "AES-KW",
+    //  },
+    //  {
+    //    name: "AES-GCM",
+    //  },
+    //  true,
+    //  ["encrypt", "decrypt"],
+    //);
+
+    //console.log('unwrapped\n', unwrapped)
 
     this._wrappedKey = wrappedKey;
     this._cripKey = unWrappedKey;
@@ -345,7 +373,7 @@ export default class CripToe {
         name: "AES-KW",
       },
       true,
-      ["unwrapKey"],
+      ["wrapKey", "unwrapKey"],
     );
   }
 
