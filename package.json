@@ -48,8 +48,5 @@
     "rollup-plugin-dts": "^6.1.1",
     "tslib": "^2.6.3",
     "vitest": "^2.0.4"
-  },
-  "dependencies": {
-    "thetyster-utils": "^2.0.3"
   }
 }
