@@ -1,14 +1,13 @@
 import { describe, test, expect } from "vitest";
 import CripToe, {
-  type EncryptReturnsSafeURL,
-  type EncryptReturnsBase64,
   type EncryptReturns,
-  type WrapKeyReturns,
-  type ExportedWrapsSafeURL,
-  type ExportedWrapsBase64,
+  type EncryptReturnsSafeURL,
   type ExportedWraps,
-} from "../src/CripToe.js";
-import { isBase64 } from "../src/index.js";
+  type ExportedWrapsBase64,
+  type ExportedWrapsSafeURL,
+  type WrapKeyReturns,
+} from "../src/index";
+import { isBase64 } from "thetyster-utils";
 
 /**
  * FIXME: Tests need to be organized better. This setup function is breaking a lot of things.
