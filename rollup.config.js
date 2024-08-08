@@ -14,7 +14,7 @@ const config = [
   {
     input: '.build/transpiled/index.d.ts',
     output: {
-      file: 'dist/CripToe.d.ts',
+      file: 'dist/CripToe.ts',
       format: 'es'
     },
     plugins: [dts()]

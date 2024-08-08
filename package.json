@@ -19,7 +19,7 @@
     "wrapper"
   ],
   "main": "dist/CripToe.js",
-  "types": "dist/CripToe.d.ts",
+  "types": "dist/CripToe.ts",
   "directories": {
     "test": "test",
     "src": "src"
@@ -33,7 +33,7 @@
   },
   "files": [
     "dist/CripToe.js",
-    "dist/CripToe.d.ts",
+    "dist/CripToe.ts",
     "dist/CripToe.js.map"
   ],
   "devDependencies": {
