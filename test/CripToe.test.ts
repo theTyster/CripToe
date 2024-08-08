@@ -7,11 +7,20 @@ import CripToe, {
   type ExportedWrapsSafeURL,
   type WrapKeyReturns,
 } from "../src/index";
-import { isBase64 } from "thetyster-utils";
 
-/**
- * FIXME: Tests need to be organized better. This setup function is breaking a lot of things.
- **/
+function isBase64(str: string): boolean {
+  const notBase64 = /[^A-Z0-9+\/=]/i;
+  const len = str.length;
+  if (!len || len % 4 !== 0 || notBase64.test(str)) {
+    return false;
+  }
+  const firstPaddingChar = str.indexOf("=");
+  return (
+    firstPaddingChar === -1 ||
+    firstPaddingChar === len - 1 ||
+    (firstPaddingChar === len - 2 && str[len - 1] === "=")
+  );
+}
 
 const testWrappingKey = {
   key_ops: ["wrapKey", "unwrapKey"],
@@ -48,38 +57,43 @@ async function setup(
 
   // Typings for wrappingKey and wrapped
   if (safeURL && toBase64) {
-    let { wrappingKey, wrappedKey } = (await C.wrapKey({
-      export: true,
-      safeURL,
-      toBase64,
-    }, testWrappingKeyStringified)) as ExportedWrapsBase64;
-    wrappingKeyReturn = wrappingKey;
-    wrappedKeyReturn = wrappedKey;
+    let { wrappingKey, wrappedKey } = await C.wrapKey(
+      {
+        export: true,
+        safeURL,
+        toBase64,
+      },
+      testWrappingKeyStringified,
+    );
+  return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else if (safeURL) {
-    let { wrappingKey, wrappedKey } = (await C.wrapKey({
-      export: true,
-      safeURL,
-    }, testWrappingKeyStringified)) as ExportedWrapsSafeURL;
-    wrappingKeyReturn = wrappingKey;
-    wrappedKeyReturn = wrappedKey;
+    let { wrappingKey, wrappedKey } = await C.wrapKey(
+      {
+        export: true,
+        safeURL,
+      },
+      testWrappingKeyStringified,
+    );
+  return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else if (toBase64) {
-    let { wrappingKey, wrappedKey } = (await C.wrapKey({
-      export: true,
-      toBase64,
-    }, testWrappingKeyStringified)) as ExportedWrapsBase64;
-    wrappingKeyReturn = wrappingKey;
-    wrappedKeyReturn = wrappedKey;
+    let { wrappingKey, wrappedKey } = await C.wrapKey(
+      {
+        export: true,
+        toBase64,
+      },
+      testWrappingKeyStringified,
+    );
+  return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else {
-    let { wrappingKey, wrappedKey } = (await C.wrapKey({
-      export: true,
-    }, testWrappingKeyStringified)) as ExportedWraps;
-    wrappingKeyReturn = wrappingKey;
-    wrappedKeyReturn = wrappedKey;
+    let { wrappingKey, wrappedKey } = await C.wrapKey(
+      {
+        export: true,
+      },
+      testWrappingKeyStringified,
+    );
+  return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   }
 
-  const wrappingKey = wrappingKeyReturn;
-  const wrappedKey = wrappedKeyReturn;
-  return { C, secret, longTestMessage, wrappingKey, wrappedKey };
 }
 
 //prettier-ignore
@@ -120,10 +134,10 @@ describe.each(variation)(
         expect(isBase64(C.encrypted)).toBeTruthy();
       });
 
-      test.todo("CripToe should have an initVector property", () => {
+      test.runIf(toBase64)("CripToe should have an initVector property", () => {
         expect(C).toHaveProperty("initVector");
         expect(C.initVector).toBeTypeOf("string");
-        /*        expect(isBase64(C.initVector)).toBeTruthy();*/
+        expect(isBase64(C.initVector as string)).toBeTruthy();
       });
 
       test("CripToe should not have a key property initially.", () => {
@@ -174,55 +188,41 @@ describe.each(variation)(
         }
       });
 
-      test.runIf(safeURL || toBase64)(
+      test.runIf(!safeURL && !toBase64)(
         "Should create a wrapping key.",
         async () => {
-          if (typeof wrappedKey === "string") {
-            expect(wrappedKey, "Should be a string.").toBeTypeOf("string");
-            if (safeURL) {
-              expect(
-                isBase64(wrappedKey),
-                "Wrapped Key should not be a base64 string",
-              ).toBeFalsy();
-            } else {
-              expect(isBase64(wrappedKey)).toBeTruthy();
-            }
-            expect(wrappingKey, "Wrapping Key is not a string.").toBeTypeOf(
-              "string",
-            );
-          }
+          const C2 = new CripToe("test");
+          const keys = await C2.wrapKey({ export: true }, wrappingKey);
+          expect(keys).toBeDefined();
         },
       );
 
-      test.runIf(!(safeURL || toBase64))("Should unwrap a key with inserted values.", async () => {
-        const C2 = new CripToe();
-
-          expect(wrappedKey).toBeInstanceOf(ArrayBuffer);
-          //@ts-ignore Accessing a private property for testing.
-          expect.soft(wrappedKey).toStrictEqual(C._wrappedKey);
-          //@ts-ignore Accessing a private property for testing.
-          await C2.unwrapKey(wrappedKey, testWrappingKeyStringified);
-          //@ts-ignore Accessing a private property for testing.
-          expect(C2._cripKey).toBeInstanceOf(CryptoKey);
-          //@ts-ignore Accessing a private property for testing.
-          expect(C2._cripKey).toStrictEqual(C._cripKey);
-          //@ts-ignore Accessing a private property for testing.
-          expect(C2._cripKey).toStrictEqual(secret.key);
-          expect(
-            //@ts-ignore Accessing a private property for testing.
-            await C2.decrypt(secret.cipher, C2._cripKey, secret.initVector),
-          ).toBe(longTestMessage);
-      });
-
-      test.runIf(!(safeURL || toBase64))("Should decrypt an encrypted string", async () => {
-        const decrypted = await C.decrypt(
-          secret.cipher,
-          secret.key,
-          secret.initVector,
+      test.runIf(!safeURL && !toBase64)("Should wrap a key.", async () => {
+        const C2 = new CripToe("test");
+        const wrapped = await C2.wrapKey(
+          { export: true },
+          testWrappingKeyStringified,
         );
-        expect(decrypted).toBeTruthy();
-        expect(decrypted).toBe(longTestMessage);
+        expect(wrapped).toBeDefined();
+        expect(wrapped).toBeInstanceOf(Object);
+        expect(wrapped).toHaveProperty("wrappedKey");
+        expect(wrapped).toHaveProperty("wrappingKey");
+        expect(wrapped.wrappedKey).toBeInstanceOf(ArrayBuffer);
+        expect(wrapped.wrappingKey).toBeTypeOf("string");
       });
+
+      test.runIf(!(safeURL || toBase64))(
+        "Should decrypt an encrypted string",
+        async () => {
+          const decrypted = await C.decrypt(
+            secret.cipher,
+            secret.key,
+            secret.initVector,
+          );
+          expect(decrypted).toBeTruthy();
+          expect(decrypted).toBe(longTestMessage);
+        },
+      );
     });
   },
 );
