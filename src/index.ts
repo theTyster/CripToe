@@ -2,6 +2,33 @@ import { ENCRYPT_RETURNS, WRAPKEY_RETURNS } from "./constants";
 
 export { default } from "./CripToe";
 
+export type Falsy = false | "" | 0 | null | undefined;
+
+export const isTruthy = <T>(x: T | Falsy): x is T => !!x;
+
+export type DefinitelyTruthy<T> = false extends T
+  ? never
+  : 0 extends T
+    ? true
+    : "" extends T
+      ? true
+      : null extends T
+        ? true
+        : undefined extends T
+          ? true
+          : unknown extends T
+            ? true
+            : T;
+
+export type Wraps<E, S, B> =
+    E extends DefinitelyTruthy<E>
+      ? S extends DefinitelyTruthy<S>
+        ? B extends DefinitelyTruthy<B>
+          ? ExportedWrapsBase64
+          : ExportedWrapsSafeURL
+        : ExportedWraps
+      : never;
+
 export type EncryptReturns = typeof ENCRYPT_RETURNS;
 export type WrapKeyReturns = typeof WRAPKEY_RETURNS;
 
@@ -75,7 +102,7 @@ export type ExportedWraps = {
   /**
    * The secret key returned as encrypted by the wrapping key.
    **/
-  readonly wrappedKey: ArrayBuffer | string;
+  readonly wrappedKey: ArrayBuffer;
 };
 
 export type ExportedWrapsSafeURL = {

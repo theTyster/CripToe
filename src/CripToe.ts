@@ -4,6 +4,9 @@ import {
   ExportedWrapsSafeURL,
   CripToeOptions,
   EncryptReturns,
+  DefinitelyTruthy,
+  Falsy,
+  Wraps,
 } from "./index";
 
 /** Provides Sha256 hashing and AES-GCM encryption and decryption of strings. For Node.*/
@@ -11,7 +14,7 @@ export default class CripToe {
   /**
    * The message originally provided to the instance for encryption.
    **/
-  message: string | undefined;
+  #message: string | undefined;
 
   /**
    * The message originally provided to the instance encoded into a Uint8Array.
@@ -22,7 +25,7 @@ export default class CripToe {
    * @param message - String to be encrypted or hashed.
    **/
   constructor(
-    message?: string,
+    message: string,
     opts?: { silenceWarnings?: boolean },
     password?: string,
   ) {
@@ -32,7 +35,7 @@ export default class CripToe {
           `WARNING: The message supplied to ${this.constructor.name} is possibly too long for a URL.\nTests show that messages longer than 1,260 characters may exceed the maximum recommended length for a URL, which is 2,084 characters.\nlength:\n${message.length}\nmessage:\n${message}`,
         );
       }
-      this.message = message;
+      this.#message = message;
     }
     this.encoded = new TextEncoder().encode(message);
 
@@ -58,7 +61,7 @@ export default class CripToe {
    * Hashes any string into a Sha256 hash. By default will hash the mesage initially provided to the constructor.
    **/
   async sha256(message?: string) {
-    if (!message) message = this.message;
+    if (!message) message = this.#message;
     const encoded = message ? new TextEncoder().encode(message) : this.encoded;
     return this.CRYP.digest("SHA-256", encoded).then((hash) => {
       const hashArray = Array.from(new Uint8Array(hash));
@@ -200,20 +203,21 @@ export default class CripToe {
    *  - toBase64: boolean - Whether to return the properties in the returned object as a standard base64 encoding. to convert
    *  them back to an ArrayBuffer @see CripToe.base64ToArrayBuffer.
    **/
-  async wrapKey(
-    opts: { export: boolean; safeURL?: boolean; toBase64?: boolean } = {
-      export: false,
-    },
+
+  async wrapKey<E, S, B>(
+    opts?: {
+          export: Falsy | E;
+          safeURL?: Falsy | S;
+          toBase64?: Falsy | B;
+        },
     wrappingKeyJWK?: string,
-  ) {
+  ): Promise<ExportedWraps | ExportedWrapsSafeURL | ExportedWrapsBase64> {
     // Check for encryption key.
     if (!this.#cripKey) {
-      this.#cripKey = await this.genCripKey()
-        .next()
-        .then((key) => key.value);
+      this.#cripKey = await this.#cripKeyWalk.next().then((key) => key.value);
     }
     if (this.#wrappedKey) {
-      return this.#wrappedKey;
+      throw new Error("The key has already been wrapped.")
     }
 
     // Generate a key to wrap the key.
@@ -245,26 +249,28 @@ export default class CripToe {
 
     const wrappingKeyJwk = await this.CRYP.exportKey("jwk", wrappingKey);
     const wrappingKeyString = JSON.stringify(wrappingKeyJwk);
-    if (opts.export) {
-      const exported = {
-        wrappingKey: wrappingKeyString,
-        wrappedKey: this.#wrappedKey,
-      } as ExportedWraps;
-      if (opts.safeURL) {
-        return {
+    if (opts?.export) {
+      if (opts?.safeURL) {
+        const safeURLExport: ExportedWrapsSafeURL = {
           wrappingKey: CripToe.encodeUrlSafeBase64(wrappingKeyString),
           wrappedKey: CripToe.encodeUrlSafeBase64(this.#wrappedKey),
-        } as ExportedWrapsSafeURL;
-      } else if (opts.toBase64) {
-        return {
+        };
+        return safeURLExport;
+      } else if (opts?.toBase64) {
+        const base64Export: ExportedWrapsBase64 = {
           wrappingKey: Buffer.from(wrappingKeyString).toString("base64"),
           wrappedKey: CripToe.arrayBufferToBase64(this.#wrappedKey),
-        } as ExportedWrapsBase64;
+        };
+        return base64Export;
       } else {
-        return exported as ExportedWraps;
+        const exported: ExportedWraps = {
+          wrappingKey: wrappingKeyString,
+          wrappedKey: this.#wrappedKey,
+        };
+        return exported;
       }
     } else {
-      return this.#wrappedKey;
+      throw new Error("This key has been wrapped. If you need to wrap it again, you must create a new instance.");
     }
   }
 
