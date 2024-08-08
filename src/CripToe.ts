@@ -37,21 +37,21 @@ export default class CripToe {
     this.encoded = new TextEncoder().encode(message);
 
     // ENSURES THAT THE CIPHER IS ONLY GENERATED ONCE.
-    this._cipher = undefined;
+    this.#cipher = undefined;
 
     // GENERATES THE ENCRYPTION KEY
     // This method uses a generator function to allow for the key to only be
     // generated when needed and only once. Additionally, this method is
     // scalable to allow for password based keys. If that is needed one day.
-    this._cripKeyWalk = this.genCripKey(password ? password : undefined);
-    this._cripKeyWalk.next().then((key) => {
-      this._cripKey = key.value as undefined;
+    this.#cripKeyWalk = this.genCripKey(password ? password : undefined);
+    this.#cripKeyWalk.next().then((key) => {
+      this.#cripKey = key.value as undefined;
     });
 
     // ENSURES THAT THE WRAP KEY IS ONLY GENERATED ONCE.
     // Requires that salt be provided. Salt is not provided here. Although, you
     // can use 'Cripto.random()' to generate salt.
-    this._wrappedKey = undefined;
+    this.#wrappedKey = undefined;
   }
 
   /**
@@ -74,12 +74,12 @@ export default class CripToe {
    * AES-GCM as opposed to AES-CBC or AES-CTR includes checks that the ciphertext has not been modified.
    **/
   async encrypt(options?: CripToeOptions) {
-    if (!this._cripKey) {
-      this._cripKey = await this._cripKeyWalk.next().then((key) => key.value);
+    if (!this.#cripKey) {
+      this.#cripKey = await this.#cripKeyWalk.next().then((key) => key.value);
     }
-    if (!this._cipher) {
-      const iv = this._iv;
-      const key = this._cripKey!;
+    if (!this.#cipher) {
+      const iv = this.#iv;
+      const key = this.#cripKey!;
       const promisedCipher = await this.CRYP.encrypt(
         {
           name: "AES-GCM",
@@ -88,25 +88,25 @@ export default class CripToe {
         key,
         this.encoded,
       );
-      this._cipher = promisedCipher;
+      this.#cipher = promisedCipher;
     }
     if (options?.safeURL) {
       return {
         cipher: CripToe.encodeUrlSafeBase64(this.encrypted),
         initVector: CripToe.encodeUrlSafeBase64(this.initVector),
-        key: this._cripKey,
+        key: this.#cripKey,
       } as const;
     } else if (options?.toBase64) {
       return {
-        cipher: CripToe.arrayBufferToBase64(this._cipher),
-        initVector: CripToe.arrayBufferToBase64(this._iv),
-        key: this._cripKey,
+        cipher: CripToe.arrayBufferToBase64(this.#cipher),
+        initVector: CripToe.arrayBufferToBase64(this.#iv),
+        key: this.#cripKey,
       } as const;
     } else {
       return {
-        cipher: this._cipher,
-        initVector: this._iv,
-        key: this._cripKey,
+        cipher: this.#cipher,
+        initVector: this.#iv,
+        key: this.#cripKey,
       } as const;
     }
   }
@@ -159,8 +159,7 @@ export default class CripToe {
    * returned out of it. Except for the first time a message is encrypted.
    **/
   async unwrapKey(wrappedKey: ArrayBuffer, wrappingKeyString: string) {
-    const wrappingKey = await this._parseJWk(wrappingKeyString);
-    console.log("wrapping\n", wrappingKey);
+    const wrappingKey = await this.#parseJWk(wrappingKeyString);
     const unWrappedKey = await this.CRYP.unwrapKey(
       "jwk",
       wrappedKey,
@@ -175,26 +174,9 @@ export default class CripToe {
       true,
       ["encrypt", "decrypt"],
     );
-    console.log("unwrapped\n", unWrappedKey);
 
-    //const unwrapped = await this.CRYP.unwrapKey(
-    //  "jwk",
-    //  wrappedKey,
-    //  wrappingKey,
-    //  {
-    //    name: "AES-KW",
-    //  },
-    //  {
-    //    name: "AES-GCM",
-    //  },
-    //  true,
-    //  ["encrypt", "decrypt"],
-    //);
-
-    //console.log('unwrapped\n', unwrapped)
-
-    this._wrappedKey = wrappedKey;
-    this._cripKey = unWrappedKey;
+    this.#wrappedKey = wrappedKey;
+    this.#cripKey = unWrappedKey;
     return true;
   }
 
@@ -225,20 +207,20 @@ export default class CripToe {
     wrappingKeyJWK?: string,
   ) {
     // Check for encryption key.
-    if (!this._cripKey) {
-      this._cripKey = await this.genCripKey()
+    if (!this.#cripKey) {
+      this.#cripKey = await this.genCripKey()
         .next()
         .then((key) => key.value);
     }
-    if (this._wrappedKey) {
-      return this._wrappedKey;
+    if (this.#wrappedKey) {
+      return this.#wrappedKey;
     }
 
     // Generate a key to wrap the key.
     // Intentionally not using the same method for generating a key as the one used to encrypt.
     let wrappingKey: CryptoKey;
     if (wrappingKeyJWK) {
-      wrappingKey = await this._parseJWk(wrappingKeyJWK);
+      wrappingKey = await this.#parseJWk(wrappingKeyJWK);
     } else {
       wrappingKey = await this.CRYP.generateKey(
         {
@@ -252,37 +234,37 @@ export default class CripToe {
 
     const wrappedKey = await this.CRYP.wrapKey(
       "jwk",
-      this._cripKey!,
+      this.#cripKey!,
       wrappingKey,
       {
         name: "AES-KW",
       },
     );
 
-    this._wrappedKey = wrappedKey;
+    this.#wrappedKey = wrappedKey;
 
     const wrappingKeyJwk = await this.CRYP.exportKey("jwk", wrappingKey);
     const wrappingKeyString = JSON.stringify(wrappingKeyJwk);
     if (opts.export) {
       const exported = {
         wrappingKey: wrappingKeyString,
-        wrappedKey: this._wrappedKey,
+        wrappedKey: this.#wrappedKey,
       } as ExportedWraps;
       if (opts.safeURL) {
         return {
           wrappingKey: CripToe.encodeUrlSafeBase64(wrappingKeyString),
-          wrappedKey: CripToe.encodeUrlSafeBase64(this._wrappedKey),
+          wrappedKey: CripToe.encodeUrlSafeBase64(this.#wrappedKey),
         } as ExportedWrapsSafeURL;
       } else if (opts.toBase64) {
         return {
           wrappingKey: Buffer.from(wrappingKeyString).toString("base64"),
-          wrappedKey: CripToe.arrayBufferToBase64(this._wrappedKey),
+          wrappedKey: CripToe.arrayBufferToBase64(this.#wrappedKey),
         } as ExportedWrapsBase64;
       } else {
         return exported as ExportedWraps;
       }
     } else {
-      return this._wrappedKey;
+      return this.#wrappedKey;
     }
   }
 
@@ -290,8 +272,8 @@ export default class CripToe {
    * The message encrypted into base64.
    **/
   get encrypted() {
-    if (this._cipher instanceof ArrayBuffer)
-      return CripToe.arrayBufferToBase64(this._cipher);
+    if (this.#cipher instanceof ArrayBuffer)
+      return CripToe.arrayBufferToBase64(this.#cipher);
     else
       throw new Error(
         "Not encrypted yet. You must call the 'encrypt' method before calling this property.",
@@ -302,7 +284,7 @@ export default class CripToe {
    * The Initial Vector, or nonce, used to salt the encryption.
    **/
   get initVector(): EncryptReturns["initVector"] {
-    return CripToe.arrayBufferToBase64(this._iv.buffer);
+    return CripToe.arrayBufferToBase64(this.#iv.buffer);
   }
 
   /**
@@ -346,10 +328,10 @@ export default class CripToe {
 
   private isNode =
     typeof process === "object" && process + "" === "[object process]";
-  private _cipher: Exclude<EncryptReturns["cipher"], string>;
-  private _cripKey: EncryptReturns["key"];
-  private _cripKeyWalk: AsyncGenerator<undefined, CryptoKey, unknown>;
-  private _wrappedKey: ArrayBuffer | undefined;
+  #cipher: Exclude<EncryptReturns["cipher"], string>;
+  #cripKey: EncryptReturns["key"];
+  #cripKeyWalk: AsyncGenerator<undefined, CryptoKey, unknown>;
+  #wrappedKey: ArrayBuffer | undefined;
 
   /**Provides Node and browser compatibility for crypto.*/
   private CRYP = (() => {
@@ -364,7 +346,7 @@ export default class CripToe {
     } else throw new Error("You are not in a supported environment.");
   })();
 
-  private async _parseJWk(JWK: string) {
+  async #parseJWk(JWK: string) {
     const wrappingKeyJwk = JSON.parse(JWK);
     return await this.CRYP.importKey(
       "jwk",
@@ -396,7 +378,7 @@ export default class CripToe {
   /**
    * Intentional dupe of 'get random()'. To avoid accidentally reusing an initVector
    **/
-  private _iv = (() => {
+  #iv = (() => {
     if (this.isNode) {
       return crypto.getRandomValues(new Uint8Array(intArrLength));
       /*    } else if ("Not in Node") {
