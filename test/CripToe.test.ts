@@ -1,31 +1,10 @@
 import { describe, test, expect } from "vitest";
-import CripToe, { type EncryptReturns, type ExportedWraps } from "../src/index";
-
-export function isBase64(str: string): boolean {
-  const notBase64 = /[^A-Z0-9+\/=]/i;
-  const len = str.length;
-  if (!len || len % 4 !== 0 || notBase64.test(str)) {
-    return false;
-  }
-  const firstPaddingChar = str.indexOf("=");
-  return (
-    firstPaddingChar === -1 ||
-    firstPaddingChar === len - 1 ||
-    (firstPaddingChar === len - 2 && str[len - 1] === "=")
-  );
-}
-
-export function isBase64URL(str: string): boolean {
-  const notBase64 = /[^A-Z0-9-_]/i;
-  const len = str.length;
-  const base64 = Buffer.from(str, "base64url").toString("base64");
-  if (isBase64(base64)) {
-    return true;
-  }
-  if (!len || len % 4 !== 0 || notBase64.test(str)) {
-    return false;
-  } else return true;
-}
+import CripToe, {
+  type EncryptReturns,
+  type ExportedWraps,
+  isBase64,
+  isBase64URL,
+} from "../src/index.js";
 
 const testWrappingKey = {
   key_ops: ["wrapKey", "unwrapKey"],
@@ -126,7 +105,6 @@ async function setup(
 }
 
 //prettier-ignore
-// {
 const variation = [
   /**safeURL    toBase64*/
     [true,      true],
@@ -139,7 +117,6 @@ const variation = [
     [true,      undefined],
     [false,     undefined],
   ]
-// }
 describe.shuffle.each(variation)(
   "CripToe test: #%# safeURL: %s, toBase64: %s",
   async (safeURL: boolean | undefined, toBase64: boolean | undefined) => {
@@ -249,8 +226,8 @@ describe.shuffle.each(variation)(
         expect(wrapped).toHaveProperty("wrappedKey");
         expect(wrapped).toHaveProperty("wrappingKey");
         if (safeURL || toBase64)
-        //@ts-ignore - This is a test for types.
-          expect(wrapped.wrappedKey).toBeTypeOf('strin:g');
+          //@ts-ignore - This is a test for types.
+          expect(wrapped.wrappedKey).toBeTypeOf("string");
         //@ts-ignore - This is a test for types.
         else expect(wrapped.wrappedKey).toBeInstanceOf(ArrayBuffer);
         //@ts-ignore - This is a test for types.

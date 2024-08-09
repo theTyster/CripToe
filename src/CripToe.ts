@@ -1,14 +1,14 @@
 import {
-  ExportedWraps,
-  ExportedWrapsBase64,
-  CripToeOptions,
-  EncryptReturns,
-  Truthy,
-  Falsy,
-  Wraps,
-} from "./index";
+  type ExportedWraps,
+  type ExportedWrapsBase64,
+  type CripToeOptions,
+  type EncryptReturns,
+  type Truthy,
+  type Falsy,
+  type Wraps,
+} from "./types.js";
 
-import { isBase64, isBase64URL } from "../test/CripToe.test";
+import { isBase64, isBase64URL } from "./utils.js";
 
 /** Provides Sha256 hashing and AES-GCM encryption and decryption of strings. For Node.*/
 export default class CripToe {
