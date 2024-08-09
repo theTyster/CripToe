@@ -206,18 +206,18 @@ export default class CripToe {
 
   async wrapKey<E, S, B>(
     opts?: {
-          export: Falsy | E;
-          safeURL?: Falsy | S;
-          toBase64?: Falsy | B;
-        },
+      export: Truthy<E> | Falsy;
+      safeURL?: Truthy<S> | Falsy;
+      toBase64?: Truthy<B> | Falsy;
+    },
     wrappingKeyJWK?: string,
-  ): Promise<ExportedWraps | ExportedWrapsSafeURL | ExportedWrapsBase64> {
+  ): Promise<Wraps<E, S, B>> {
     // Check for encryption key.
     if (!this.#cripKey) {
       this.#cripKey = await this.#cripKeyWalk.next().then((key) => key.value);
     }
     if (this.#wrappedKey) {
-      throw new Error("The key has already been wrapped.")
+      throw new Error("The key has already been wrapped.");
     }
 
     // Generate a key to wrap the key.
@@ -249,29 +249,27 @@ export default class CripToe {
 
     const wrappingKeyJwk = await this.CRYP.exportKey("jwk", wrappingKey);
     const wrappingKeyString = JSON.stringify(wrappingKeyJwk);
+    const exported: ExportedWraps = {
+      wrappingKey: wrappingKeyString,
+      wrappedKey: this.#wrappedKey,
+    };
     if (opts?.export) {
       if (opts?.safeURL) {
-        const safeURLExport: ExportedWrapsSafeURL = {
-          wrappingKey: CripToe.encodeUrlSafeBase64(wrappingKeyString),
-          wrappedKey: CripToe.encodeUrlSafeBase64(this.#wrappedKey),
+        const safeURLExport: Wraps<true, true, false> = {
+          wrappingKey: Buffer.from(wrappingKeyString).toString("base64url"),
+          wrappedKey: Buffer.from(wrappedKey).toString("base64url"),
         };
-        return safeURLExport;
+        return safeURLExport as unknown as Wraps<E, S, B>;
       } else if (opts?.toBase64) {
         const base64Export: ExportedWrapsBase64 = {
           wrappingKey: Buffer.from(wrappingKeyString).toString("base64"),
-          wrappedKey: CripToe.arrayBufferToBase64(this.#wrappedKey),
+          wrappedKey: Buffer.from(wrappedKey).toString("base64"),
         };
-        return base64Export;
+        return base64Export as unknown as Wraps<E, S, B>;
       } else {
-        const exported: ExportedWraps = {
-          wrappingKey: wrappingKeyString,
-          wrappedKey: this.#wrappedKey,
-        };
-        return exported;
+        return exported as unknown as Wraps<E, S, B>;
       }
-    } else {
-      throw new Error("This key has been wrapped. If you need to wrap it again, you must create a new instance.");
-    }
+    } else return exported as unknown as Wraps<E, S, B>;
   }
 
   /**
@@ -279,7 +277,7 @@ export default class CripToe {
    **/
   get encrypted() {
     if (this.#cipher instanceof ArrayBuffer)
-      return CripToe.arrayBufferToBase64(this.#cipher);
+      return Buffer.from(this.#cipher).toString("base64");
     else
       throw new Error(
         "Not encrypted yet. You must call the 'encrypt' method before calling this property.",
@@ -290,11 +288,11 @@ export default class CripToe {
    * The Initial Vector, or nonce, used to salt the encryption.
    **/
   get initVector(): EncryptReturns["initVector"] {
-    return CripToe.arrayBufferToBase64(this.#iv.buffer);
+    return this.#iv;
   }
 
   /**
-   * Converts an Array Buffer to a base64 string.
+   * Converts the message from base64 to an array buffer.
    **/
   get messageBuf() {
     if (

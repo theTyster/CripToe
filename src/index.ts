@@ -4,33 +4,64 @@ export { default } from "./CripToe";
 
 export type Falsy = false | "" | 0 | null | undefined;
 
+export type False = Falsy;
+export type True = Truthy<true>;
+
 export const isTruthy = <T>(x: T | Falsy): x is T => !!x;
 
-export type DefinitelyTruthy<T> = false extends T
+export type Truthy<T> = false extends T
   ? never
   : 0 extends T
-    ? true
+    ? never
     : "" extends T
-      ? true
+      ? never
       : null extends T
-        ? true
+        ? never
         : undefined extends T
-          ? true
+          ? never
           : unknown extends T
-            ? true
+            ? never
             : T;
 
-export type Wraps<E, S, B> =
-    E extends DefinitelyTruthy<E>
-      ? S extends DefinitelyTruthy<S>
-        ? B extends DefinitelyTruthy<B>
-          ? ExportedWrapsBase64
-          : ExportedWrapsSafeURL
-        : ExportedWraps
-      : never;
 
-export type EncryptReturns = typeof ENCRYPT_RETURNS;
-export type WrapKeyReturns = typeof WRAPKEY_RETURNS;
+export type Wraps<E, S, B> = E extends True
+  ? S extends B
+    ? S extends True
+      ? never
+      : ExportedWraps
+    : S extends True
+      ? ExportedWrapsSafeURL
+      : B extends False
+        ? ExportedWrapsSafeURL
+        : S extends False
+          ? ExportedWrapsBase64
+          : B extends False
+            ? ExportedWrapsBase64
+            : never
+  : E extends False
+    ? ExportedWraps
+    : never;
+
+export type ENCRYPT_RETURNS = typeof ENCRYPT_RETURNS;
+export type WRAPKEY_RETURNS = typeof WRAPKEY_RETURNS;
+
+export interface EncryptReturns {
+  /**
+   * Data encrypted and encoded to either base64, base64url or ArrayBuffer.
+   **/
+  readonly cipher: ENCRYPT_RETURNS["cipher"];
+  /**
+   * This is the only time the encryption key is returned.
+   * It is always returned as an instance of CryptoKey.
+   * If you don't want it to be available in scope, don't destructure it.
+   **/
+  readonly key: ENCRYPT_RETURNS["key"];
+  /**
+   * The Initial Vector, or nonce, used to salt the encryption.
+   * Always returned as a Uint8Array.
+   **/
+  readonly initVector: ENCRYPT_RETURNS["initVector"];
+}
 
 export interface CripToeOptions {
   /**
@@ -41,48 +72,21 @@ export interface CripToeOptions {
   safeURL?: boolean;
   toBase64?: boolean;
 }
-export type EncryptReturnsSafeURL = {
+export interface EncryptReturnsSafeURL extends EncryptReturns {
   /**
    * Data encrypted to Base64 with special URL characters replaced.
-   * Decode it back into Base64 with {@see CripToe.decodeUrlSafeBase64.}
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
    **/
-  readonly cipher: string;
-  /**
-   * This is the only time the key is returned anywhere.
-   * It is always returned as an instance of CryptoKey.
-   * If you don't want it to be available in scope, don't destructure it.
-   **/
-  readonly key: CryptoKey;
-  /**
-   * Init Vector converted to Base64 with special URL characters replaced.
-   * Decode it back into Base64 with {@see CripToe.decodeUrlSafeBase64.}
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
-   * Init Vector does not need to be a secret.
-   **/
-  readonly initVector: string;
-};
+  readonly cipher: Exclude<EncryptReturns["cipher"], ArrayBuffer>;
+}
 
-export type EncryptReturnsBase64 = {
+export interface EncryptReturnsBase64 extends EncryptReturns {
   /**
    * Data encrypted and encoded to Base64.
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer}
    **/
-  readonly cipher: string;
-  /**
-   * This is the only time the key is returned anywhere.
-   * It is always returned as an instance of CryptoKey.
-   * If you don't want it to be available in scope, don't destructure it.
-   **/
-  readonly key: CryptoKey;
-  /**
-   * Data encrypted and encoded to Base64.
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer}
-   **/
-  readonly initVector: string;
-};
+  readonly cipher: Exclude<EncryptReturns["cipher"], ArrayBuffer>;
+}
 
-export type ExportedWraps = {
+export interface ExportedWraps {
   /**
    * The key used to wrap the secret key. Returned as a JSON Web Key (JWK)
    * exported and stringified.
@@ -98,38 +102,32 @@ export type ExportedWraps = {
    *  "y": "hHUag3OvDzEr0uUQND4PXHQTXP5IDGdYhJhL-WLKjnGjQAw0rNGy5V29-aV-yseW"
    *};
    **/
-  readonly wrappingKey: string;
+  readonly wrappingKey: WRAPKEY_RETURNS["wrappingKey"];
   /**
    * The secret key returned as encrypted by the wrapping key.
    **/
-  readonly wrappedKey: ArrayBuffer;
-};
+  readonly wrappedKey: WRAPKEY_RETURNS["wrappedKey"];
+}
 
-export type ExportedWrapsSafeURL = {
+export interface ExportedWrapsSafeURL extends ExportedWraps {
   /**
    * Wrapping key converted to Base64 with special URL characters replaced.
-   * Decode it back into Base64 with {@see CripToe.decodeUrlSafeBase64.}
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
    **/
-  readonly wrappingKey: string;
+  readonly wrappingKey: ExportedWraps["wrappingKey"];
   /**
    * Secret key encrypted by wrapping key and converted to Base64 with special
    * URL characters replaced.
-   * Decode it back into Base64 with {@see CripToe.decodeUrlSafeBase64.}
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
    **/
-  readonly wrappedKey: string;
-};
+  readonly wrappedKey: Exclude<ExportedWraps["wrappedKey"], ArrayBuffer>;
+}
 
-export type ExportedWrapsBase64 = {
+export interface ExportedWrapsBase64 extends ExportedWraps {
   /*nv$h{*
    * Wrapping key encoded to Base64.
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
    **/
-  readonly wrappingKey: string;
+  readonly wrappingKey: ExportedWraps["wrappingKey"];
   /**
    * Secret Key encrypted and encoded to Base64.
-   * Decode it back into an ArrayBuffer with {@see CripToe.base64ToArrayBuffer.}
    **/
-  readonly wrappedKey: string;
-};
+  readonly wrappedKey: Exclude<ExportedWraps["wrappedKey"], ArrayBuffer>;
+}
