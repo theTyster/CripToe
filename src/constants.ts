@@ -2,7 +2,7 @@
 export const ENCRYPT_RETURNS = {
   cipher: true ? undefined : true ? String() : new ArrayBuffer(0),
   key: true ? undefined : new CryptoKey(),
-  initVector: true ? String() : new Uint8Array(),
+  initVector: true? String(): new Uint8Array(),
 } as const;
 
 /**Type Helper for CripToe's wrapKey function*/
