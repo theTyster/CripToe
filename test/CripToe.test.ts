@@ -142,7 +142,7 @@ const variation = [
 // }
 describe.shuffle.each(variation)(
   "CripToe test: #%# safeURL: %s, toBase64: %s",
-  async (safeURL: boolean, toBase64: boolean) => {
+  async (safeURL: boolean | undefined, toBase64: boolean | undefined) => {
     const { C, secret, longTestMessage, wrappingKey, wrappedKey } = await setup(
       safeURL,
       toBase64,
