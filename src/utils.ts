@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 export function isBase64(str: string): boolean {
   const notBase64 = /[^A-Z0-9+\/=]/i;
   const len = str.length;
