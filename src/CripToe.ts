@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import {
   type ExportedWraps,
   type ExportedWrapsBase64,
@@ -336,7 +337,7 @@ export default class CripToe {
     return arrayBuf;
   }
 
-  #isNode = typeof process === "object" && process + "" === "[object process]";
+  #isSupported = Boolean(crypto.subtle);
   #cipher: Exclude<EncryptReturns["cipher"], string>;
   #cripKey: EncryptReturns["key"];
   #cripKeyWalk: AsyncGenerator<undefined, CryptoKey, unknown>;
@@ -353,7 +354,7 @@ export default class CripToe {
   #silenced: boolean;
 
   private CRYP = (() => {
-    if (this.#isNode) {
+    if (this.#isSupported) {
       const cryp = crypto.subtle;
       if (cryp instanceof SubtleCrypto) return cryp;
       else throw new Error("SubtleCrypto is not available.");
@@ -374,7 +375,7 @@ export default class CripToe {
   }
 
   get random() {
-    if (this.#isNode) {
+    if (this.#isSupported) {
       return crypto.getRandomValues(new Uint8Array(intArrLength));
     } else throw new Error("You are not in a supported environment.");
   }
@@ -389,7 +390,7 @@ export default class CripToe {
    * Intentional dupe of 'get random()'. To avoid accidentally reusing an initVector
    **/
   #iv = (() => {
-    if (this.#isNode) {
+    if (this.#isSupported) {
       return crypto.getRandomValues(new Uint8Array(intArrLength));
     } else throw new Error("You are not in a supported environment.");
   })();

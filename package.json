@@ -38,6 +38,7 @@
     "dist/CripToe.js.map"
   ],
   "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^8.0.1",
