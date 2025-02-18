@@ -59,7 +59,8 @@ describe.each(new Array(iterations).fill("i"))(
     });
 
     // Encrypt the data. Get back the cipher and the initialization vector.
-    // You can also extract the unwrapped key here. This is the only time the raw key can be extracted out of CripToe.
+    // You can also extract the unwrapped key here. This is the only time the
+    // raw key can be extracted out of CripToe.
     const encrypted = await criptoe.encrypt({
       safeURL: true,
     }) as EncryptReturnsSafeURL;
@@ -93,11 +94,11 @@ describe.each(new Array(iterations).fill("i"))(
     const iv = urlObj.searchParams.get("iv") as string;
     const wk = urlObj.searchParams.get("k") as string;
 
-    // Transform the wrapped key into a buffer for unwrapping
-    const wrappedBuf = base64.toArrayBuffer(wk, Boolean("url"));
-
     // Inject encrypted data into criptoe instance at instantiation
     const criptoeDecrypt = new CripToe(encryptedString);
+    
+    // Transform the wrapped key into a buffer for unwrapping
+    const wrappedBuf = criptoeDecrypt.toArrayBuffer(wk, Boolean("url"));
 
     // Unwrap the key
     await criptoeDecrypt.unwrapKey(wrappedBuf, secret.wrappingKey);
@@ -130,11 +131,11 @@ describe.each(new Array(iterations).fill("i"))(
       expect(unencryptedMessage).toBe(messageToEncrypt);
     });
 
-    url.searchParams.get("src");
-    url.searchParams.get("width");
-    url.searchParams.get("height");
-    url.searchParams.get("fit");
-    url.searchParams.get("dpr");
-    url.searchParams.get("quality");
+    data.get("src");
+    data.get("width");
+    data.get("height");
+    data.get("fit");
+    data.get("dpr");
+    data.get("quality");
   },
 );
