@@ -1,4 +1,4 @@
-import { Buffer } from "node:buffer";
+import { base64 } from "@hexagon/base64";
 import {
   type ExportedWraps,
   type ExportedWrapsBase64,
@@ -91,14 +91,14 @@ export default class CripToe {
     }
     if (options?.safeURL) {
       return {
-        cipher: Buffer.from(this.#cipher).toString("base64url"),
-        initVector: Buffer.from(this.#iv).toString("base64url"),
+        cipher: base64.fromArrayBuffer(this.#cipher, Boolean("url")),
+        initVector: base64.fromArrayBuffer(this.#iv.buffer), // IMPORTANT: Doesn't need to be URL safe since it's so short. This has been tested extensively.
         key: this.#cripKey,
       } as const satisfies EncryptReturns;
     } else if (options?.toBase64) {
       return {
-        cipher: Buffer.from(this.#cipher).toString("base64"),
-        initVector: Buffer.from(this.#iv).toString("base64"),
+        cipher: base64.fromArrayBuffer(this.#cipher),
+        initVector: base64.fromArrayBuffer(this.#iv.buffer),
         key: this.#cripKey,
       } as const satisfies EncryptReturns;
     } else {
@@ -123,21 +123,44 @@ export default class CripToe {
     initVector: EncryptReturns["initVector"],
   ) {
     if (typeof cipher === "string") {
-      if (isBase64(cipher)) {
-        cipher = Buffer.from(cipher, "base64");
-      } else if (isBase64URL(cipher)) {
-        cipher = Buffer.from(cipher, "base64url");
-      } else if (cipher === this.#message) {
-        cipher = this.messageBuf;
+      if (base64.validate(cipher, Boolean("url"))) {
+        // The string is a base64URL string
+        cipher = base64.toArrayBuffer(cipher, Boolean("url"));
+      } else if (base64.validate(cipher)) {
+        // The string is a base64 string
+        cipher = base64.toArrayBuffer(cipher);
+      } else {
+        throw new Error(
+          "The cipher is not in a recognizeable string. It should be in a base64 or base64URL string",
+        );
       }
     }
-
-    if (cipher instanceof Buffer) {
-      cipher = CripToe.arrayBufferFrom(cipher) as ArrayBuffer;
+    // The cipher is an ArrayBuffer.
+    if (cipher!.byteLength < 16) {
+      throw new Error("Invalid ciphertext (missing authentication tag)");
     }
 
     if (typeof initVector === "string") {
-      initVector = Buffer.from(initVector, "base64url");
+      if (base64.validate(initVector)) {
+        // The string is a base64 string
+        initVector = base64.toArrayBuffer(initVector);
+      } else if (base64.validate(initVector, Boolean("url"))) {
+        // The string is a base64URL string
+        initVector = base64.toArrayBuffer(initVector, Boolean("url"));
+      } else {
+        throw new Error(
+          "The cipher is not in a recognizeable string. It should encoded into a base64 string. !!NOT!! a base64 url string.",
+        );
+      }
+    }
+    if (
+      !(initVector instanceof Uint8Array) &&
+      !(initVector instanceof ArrayBuffer)
+    )
+      throw new Error("InitVector should be BufferSource at this point.");
+
+    if (initVector.byteLength !== 12) {
+      throw new Error("IV must be 12 bytes for AES-GCM");
     }
 
     if (!(key instanceof CryptoKey))
@@ -145,21 +168,25 @@ export default class CripToe {
         "You must provide a valid encryption key to decrypt. It should be an instance of CryptoKey.",
       );
 
-    if (!(cipher instanceof ArrayBuffer))
-      throw new Error(
-        "You must provide a valid encrypted message to decrypt. It should be an instance of ArrayBuffer or a string.",
-      );
+    if (!key.usages.includes("decrypt")) {
+      throw new Error("Key not authorized for decryption");
+    }
 
-    const decrypted = await this.CRYP.decrypt(
-      {
-        name: "AES-GCM",
-        iv: initVector,
-      },
-      key,
-      cipher,
-    );
-    this.#message = decrypted;
-    return new TextDecoder("utf-8").decode(decrypted);
+    try {
+      const decrypted = await this.CRYP.decrypt(
+        {
+          name: "AES-GCM",
+          iv: initVector as Uint8Array | ArrayBuffer,
+        },
+        key,
+        cipher!,
+      );
+      const decryptedText = new TextDecoder("utf-8").decode(decrypted);
+      return decryptedText;
+    } catch (e: unknown) {
+      console.log(e);
+      throw new Error(e as string);
+    }
   }
 
   /**
@@ -250,6 +277,7 @@ export default class CripToe {
 
     const wrappingKeyJwk = await this.CRYP.exportKey("jwk", wrappingKey);
     const wrappingKeyString = JSON.stringify(wrappingKeyJwk);
+    const wrappingKeyBuffer = base64.toArrayBuffer(wrappingKeyString);
     const exported: ExportedWraps = {
       wrappingKey: wrappingKeyString,
       wrappedKey: this.#wrappedKey,
@@ -257,14 +285,17 @@ export default class CripToe {
     if (opts?.export) {
       if (opts?.safeURL) {
         const safeURLExport: Wraps<true, true, false> = {
-          wrappingKey: Buffer.from(wrappingKeyString).toString("base64url"),
-          wrappedKey: Buffer.from(wrappedKey).toString("base64url"),
+          wrappingKey: base64.fromArrayBuffer(
+            wrappingKeyBuffer,
+            Boolean("url"),
+          ),
+          wrappedKey: base64.fromArrayBuffer(wrappedKey, Boolean("url")),
         };
         return safeURLExport as unknown as Wraps<E, S, B>;
       } else if (opts?.toBase64) {
         const base64Export: ExportedWrapsBase64 = {
-          wrappingKey: Buffer.from(wrappingKeyString).toString("base64"),
-          wrappedKey: Buffer.from(wrappedKey).toString("base64"),
+          wrappingKey: base64.fromArrayBuffer(wrappingKeyBuffer),
+          wrappedKey: base64.fromArrayBuffer(wrappedKey),
         };
         return base64Export as unknown as Wraps<E, S, B>;
       } else {
@@ -278,7 +309,7 @@ export default class CripToe {
    **/
   get encrypted() {
     if (this.#cipher instanceof ArrayBuffer)
-      return Buffer.from(this.#cipher).toString("base64");
+      return base64.fromArrayBuffer(this.#cipher);
     else
       throw new Error(
         "Not encrypted yet. You must call the 'encrypt' method before calling this property.",
@@ -296,25 +327,9 @@ export default class CripToe {
    * Converts the message from base64 to an array buffer.
    **/
   get messageBuf() {
-    if (
-      !(this.#message instanceof ArrayBuffer) &&
-      !(this.#message instanceof SharedArrayBuffer) &&
-      isBase64(this.#message)
-    ) {
-      const messageBuf = Buffer.from(this.#message, "base64");
-      return CripToe.arrayBufferFrom(messageBuf);
-    } else if (
-      !(this.#message instanceof ArrayBuffer) &&
-      !(this.#message instanceof SharedArrayBuffer) &&
-      isBase64URL(this.#message)
-    ) {
-      const messageBuf = Buffer.from(this.#message, "base64url");
-      return CripToe.arrayBufferFrom(messageBuf);
-    } else if (
-      !(this.#message instanceof ArrayBuffer) &&
-      !(this.#message instanceof SharedArrayBuffer)
-    ) {
-      return this.encoded.buffer;
+    if (isBase64(this.#message)) {
+      const messageBuf = base64.toArrayBuffer(this.#message);
+      return messageBuf;
     } else return this.#message;
   }
 
@@ -322,19 +337,7 @@ export default class CripToe {
    * The message originally provided to the instance for encryption.
    **/
   get message() {
-    if (this.#message instanceof ArrayBuffer) {
-      return new TextDecoder().decode(this.#message);
-    } else return this.#message;
-  }
-
-  static arrayBufferFrom(messageBuf: Buffer): ArrayBuffer {
-    const arrBuf = new ArrayBuffer(messageBuf.length);
-    const messageView = new Uint8Array(arrBuf);
-    for (let i = 0; i < messageBuf.length; i++) {
-      messageView[i] = messageBuf[i];
-    }
-    const arrayBuf = new Uint8Array(messageView).buffer;
-    return arrayBuf;
+    return this.#message;
   }
 
   #isSupported = Boolean(crypto.subtle);
@@ -346,7 +349,7 @@ export default class CripToe {
   /**
    * The message originally provided to the instance for encryption.
    **/
-  #message: string | ArrayBufferLike;
+  #message: string;
 
   /**
    * Used to silence warnings.
