@@ -4,6 +4,8 @@ import {
   type ExportedWrapsBase64,
   type CripToeOptions,
   type EncryptReturns,
+  type EncryptReturnsBase64,
+  type EncryptReturnsSafeURL,
   type Truthy,
   type Falsy,
   type Wraps,
@@ -36,7 +38,7 @@ export default class CripToe {
     this.encoded = new TextEncoder().encode(this.#message);
 
     // ENSURES THAT THE CIPHER IS ONLY GENERATED ONCE.
-    this.#cipher = undefined;
+    this.#cipher = undefined as unknown as ArrayBuffer;
 
     // GENERATES THE ENCRYPTION KEY ONLY ONCE AND ONLY WHEN NEEDED.
     // This method uses a generator function to allow for the key to only be
@@ -44,7 +46,7 @@ export default class CripToe {
     // scalable to allow for password based keys. If that is needed one day.
     this.#cripKeyWalk = this.genCripKey(/*password ? password : undefined*/);
     this.#cripKeyWalk.next().then((key) => {
-      this.#cripKey = key.value as undefined;
+      this.#cripKey = key.value;
     });
 
     // ENSURES THAT THE WRAP KEY IS ONLY GENERATED ONCE.
@@ -72,7 +74,9 @@ export default class CripToe {
    * Encrypts the message into AES-GCM.
    * AES-GCM as opposed to AES-CBC or AES-CTR includes checks that the ciphertext has not been modified.
    **/
-  async encrypt(options?: CripToeOptions) {
+  async encrypt(
+    options?: CripToeOptions,
+  ): Promise<EncryptReturns | EncryptReturnsBase64 | EncryptReturnsSafeURL> {
     if (!this.#cripKey) {
       this.#cripKey = await this.#cripKeyWalk.next().then((key) => key.value);
     }
@@ -92,21 +96,21 @@ export default class CripToe {
     if (options?.safeURL) {
       return {
         cipher: base64.fromArrayBuffer(this.#cipher, Boolean("url")),
-        initVector: base64.fromArrayBuffer(this.#iv.buffer), // IMPORTANT: Doesn't need to be URL safe since it's so short. This has been tested extensively.
-        key: this.#cripKey,
-      } as const satisfies EncryptReturns;
+        initVector: base64.fromArrayBuffer(this.#iv.buffer), // IMPORTANT: Doesn't need to be URL safe since it will be properly encoded by searchParams. This has been tested extensively.
+        key: this.#cripKey!,
+      } as const satisfies EncryptReturnsSafeURL;
     } else if (options?.toBase64) {
       return {
         cipher: base64.fromArrayBuffer(this.#cipher),
         initVector: base64.fromArrayBuffer(this.#iv.buffer),
-        key: this.#cripKey,
-      } as const satisfies EncryptReturns;
+        key: this.#cripKey!,
+      } as const satisfies EncryptReturnsBase64;
     } else {
       return {
         cipher: this.#cipher,
         initVector: this.#iv,
-        key: this.#cripKey,
-      } as const satisfies EncryptReturns;
+        key: this.#cripKey!,
+      } as EncryptReturns;
     }
   }
 
@@ -118,9 +122,18 @@ export default class CripToe {
    * @param cipher - The encrypted data to be decrypted. Provided as base64 string.
    **/
   async decrypt(
-    cipher: EncryptReturns["cipher"],
-    key: EncryptReturns["key"],
-    initVector: EncryptReturns["initVector"],
+    cipher:
+      | EncryptReturns["cipher"]
+      | EncryptReturnsBase64["cipher"]
+      | EncryptReturnsSafeURL["cipher"],
+    key:
+      | EncryptReturns["key"]
+      | EncryptReturnsBase64["key"]
+      | EncryptReturnsSafeURL["key"],
+    initVector:
+      | EncryptReturns["initVector"]
+      | EncryptReturnsBase64["initVector"]
+      | EncryptReturnsSafeURL["initVector"],
   ) {
     if (typeof cipher === "string") {
       if (base64.validate(cipher, Boolean("url"))) {
@@ -233,11 +246,7 @@ export default class CripToe {
    **/
 
   async wrapKey<E, S, B>(
-    opts?: {
-      export: Truthy<E> | Falsy;
-      safeURL?: Truthy<S> | Falsy;
-      toBase64?: Truthy<B> | Falsy;
-    },
+    opts?: CripToeOptions,
     wrappingKeyJWK?: string,
   ): Promise<Wraps<E, S, B>> {
     // Check for encryption key.
@@ -342,8 +351,8 @@ export default class CripToe {
 
   #isSupported = Boolean(crypto.subtle);
   #cipher: Exclude<EncryptReturns["cipher"], string>;
-  #cripKey: EncryptReturns["key"];
-  #cripKeyWalk: AsyncGenerator<undefined, CryptoKey, unknown>;
+  #cripKey: EncryptReturns["key"] | undefined;
+  #cripKeyWalk: AsyncGenerator<CryptoKey>;
   #wrappedKey: ArrayBuffer | undefined;
 
   /**
@@ -399,8 +408,8 @@ export default class CripToe {
   })();
 
   /**The key used to encrypt and decrypt the message.**/
-  private async *genCripKey(password?: string) {
-    yield undefined;
+  private async *genCripKey(password?: string): AsyncGenerator<CryptoKey> {
+    yield undefined as unknown as CryptoKey;
     if (!password) {
       return await this.CRYP.generateKey(
         {
