@@ -6,15 +6,11 @@ import {
   type EncryptReturns,
   type EncryptReturnsBase64,
   type EncryptReturnsSafeURL,
-  type Truthy,
-  type Falsy,
   type Wraps,
 } from "./types.js";
 
-import { isBase64, isBase64URL } from "./utils.js";
-
 /** Provides Sha256 hashing and AES-GCM encryption and decryption of strings. For Node.*/
-export default class CripToe extends base64 {
+export default class CripToe {
   /**
    * The message originally provided to the instance encoded into a Uint8Array.
    **/
@@ -28,7 +24,6 @@ export default class CripToe extends base64 {
     opts?: { silenceWarnings?: boolean },
     /*password?: string,*/
   ) {
-    super(base64)
     if (message.length > 1260 && !opts?.silenceWarnings) {
       console.warn(
         `WARNING: The message supplied to ${this.constructor.name} is possibly too long for a URL.\nTests show that messages longer than 1,260 characters may exceed the maximum recommended length for a URL, which is 2,084 characters.\nlength:\n${message.length}\nmessage:\n${message}`,
@@ -344,7 +339,7 @@ export default class CripToe extends base64 {
    * Converts the message from base64 to an array buffer.
    **/
   get messageBuf() {
-    if (isBase64(this.#message)) {
+    if (this.validate(this.#message)) {
       const messageBuf = base64.toArrayBuffer(this.#message);
       return messageBuf;
     } else return this.#message;
