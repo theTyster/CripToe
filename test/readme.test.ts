@@ -1,6 +1,5 @@
 import { describe, test, expect } from "vitest";
 import CripToe, {
-  isBase64,
   isBase64URL,
   type ExportedWraps,
   EncryptReturnsSafeURL,
@@ -29,19 +28,17 @@ describe.each(new Array(iterations).fill("i"))(
     const secret: ExportedWraps = await criptoeKey.wrapKey({ export: true });
     const criptoe = new CripToe(messageToEncrypt);
 
-    const wrappingKeyStringifiedForYou = JSON.parse(secret.wrappingKey);
     console.log(
       "\n***************************************************************\n",
       "Here's a free wrapping key for you to use in your application:",
       "\n***************************************************************\n",
-      wrappingKeyStringifiedForYou,
+      secret.wrappingKey,
     );
     test("Should obtain a wrapping Key", async () => {
       expect(secret).toBeDefined();
       expect(secret.wrappingKey).toBeDefined();
       expect(secret.wrappedKey).toBeDefined();
       expect(secret.wrappedKey).toBeInstanceOf(ArrayBuffer);
-      expect(wrappingKeyStringifiedForYou).toHaveProperty("k");
     });
 
     // Wrap the key with the secret wrapping key.
@@ -97,11 +94,8 @@ describe.each(new Array(iterations).fill("i"))(
     // Inject encrypted data into criptoe instance at instantiation
     const criptoeDecrypt = new CripToe(encryptedString);
     
-    // Transform the wrapped key into a buffer for unwrapping
-    const wrappedBuf = criptoeDecrypt.toArrayBuffer(wk, Boolean("url"));
-
     // Unwrap the key
-    await criptoeDecrypt.unwrapKey(wrappedBuf, secret.wrappingKey);
+    await criptoeDecrypt.unwrapKey(wk, secret.wrappingKey);
 
     // Get the unwrapped key back out
     const { key } = await criptoeDecrypt.encrypt();

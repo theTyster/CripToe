@@ -10,16 +10,6 @@ import CripToe, {
 } from "../src/index.js";
 import { base64 } from "@hexagon/base64";
 
-const testWrappingKey = {
-  key_ops: ["wrapKey", "unwrapKey"],
-  ext: true,
-  kty: "oct",
-  k: "G9a4N-kkNmJuw0qFHGoQYRCEpavphPddcpwjGnnRKBk",
-  alg: "A256KW",
-};
-
-const testWrappingKeyStringified = JSON.stringify(testWrappingKey);
-
 describe.each([
   ["here's a random string"],
   ["here's another one."],
@@ -86,7 +76,6 @@ async function setup(
         safeURL,
         toBase64,
       },
-      testWrappingKeyStringified,
     );
     return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else if (safeURL) {
@@ -95,7 +84,6 @@ async function setup(
         export: true,
         safeURL,
       },
-      testWrappingKeyStringified,
     );
     return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else if (toBase64) {
@@ -104,7 +92,6 @@ async function setup(
         export: true,
         toBase64,
       },
-      testWrappingKeyStringified,
     );
     return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   } else {
@@ -112,7 +99,6 @@ async function setup(
       {
         export: true,
       },
-      testWrappingKeyStringified,
     );
     return { C, secret, longTestMessage, wrappingKey, wrappedKey };
   }
@@ -225,7 +211,6 @@ describe.each(variation)(
         const C2 = new CripToe("test");
         const wrapped = await C2.wrapKey(
           { export: true, safeURL, toBase64 },
-          testWrappingKeyStringified,
         );
         expect(wrapped).toBeDefined();
         expect(wrapped).toBeInstanceOf(Object);
@@ -261,9 +246,6 @@ while (iterations--) {
       expect(secret.cipher).not.toContain("=");
       expect(secret.cipher).not.toContain("+");
       expect(secret.cipher).not.toContain("/");
-      expect(wrappedKey).not.toContain("=");
-      expect(wrappedKey).not.toContain("+");
-      expect(wrappedKey).not.toContain("/");
     });
     test("CripToe.encrypted getter should return a base64 string.", () => {
       expect(C.encrypted).toBeTypeOf("string");

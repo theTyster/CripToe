@@ -207,13 +207,14 @@ export default class CripToe {
 
   /**
    * Takes any given, (wrapped) key and unencrypts it with a provided wrapping key. The wrapping key is expected to be in JWK format. The unwrapped key then becomes the key used to encrypt and decrypt messages. NOTE: The unwrapped key and the wrapped key are stored in the instance and never returned out of it. Except for the first time a message is encrypted.
-   * @param wrappedKey - The key to be unwrapped. Provided as a base64 string.
+   * @param wrappedKeyString - The key to be unwrapped. Provided as a base64 string.
    * @param wrappingKeyString - The key used to wrap the secret key. Provided as a JSON Web Key (JWK) string.
    **/
-  async unwrapKey(wrappedKey: ArrayBuffer, wrappingKeyString: string) {
-    const wrappingKey = await this.#parseJWk(wrappingKeyString);
+  async unwrapKey(wrappedKeyString: string, wrappingKeyString: string) {
+    const wrappingKey = await this.#parseKey(wrappingKeyString);
+    const wrappedKey = base64.toArrayBuffer(wrappedKeyString);
     const unWrappedKey = await this.CRYP.unwrapKey(
-      "jwk",
+      "raw",
       wrappedKey,
       wrappingKey,
       {
@@ -250,7 +251,7 @@ export default class CripToe {
 
   async wrapKey<E, S, B>(
     opts?: CripToeOptions,
-    wrappingKeyJWK?: string,
+    wrappingKeyBase64?: string,
   ): Promise<Wraps<E, S, B>> {
     // Check for encryption key.
     if (!this.#cripKey) {
@@ -263,8 +264,18 @@ export default class CripToe {
     // Generate a key to wrap the key.
     // Intentionally not using the same method for generating a key as the one used to encrypt.
     let wrappingKey: CryptoKey;
-    if (wrappingKeyJWK) {
-      wrappingKey = await this.#parseJWk(wrappingKeyJWK);
+    if (wrappingKeyBase64) {
+      const rawWrappingKey = base64.toArrayBuffer(wrappingKeyBase64);
+      wrappingKey = await this.CRYP.importKey(
+        "raw",
+        rawWrappingKey,
+        {
+          name: "AES-KW",
+          length: 256,
+        },
+        true,
+        ["wrapKey", "unwrapKey"],
+      );
     } else {
       wrappingKey = await this.CRYP.generateKey(
         {
@@ -277,19 +288,19 @@ export default class CripToe {
     }
 
     const wrappedKey = await this.CRYP.wrapKey(
-      "jwk",
+      "raw",
       this.#cripKey!,
       wrappingKey,
       {
         name: "AES-KW",
+        length: 256,
       },
     );
 
     this.#wrappedKey = wrappedKey;
 
-    const wrappingKeyJwk = await this.CRYP.exportKey("jwk", wrappingKey);
-    const wrappingKeyString = JSON.stringify(wrappingKeyJwk);
-    const wrappingKeyBuffer = base64.toArrayBuffer(wrappingKeyString);
+    const wrappingKeyRaw = await this.CRYP.exportKey("raw", wrappingKey);
+    const wrappingKeyString = base64.fromArrayBuffer(wrappingKeyRaw);
     const exported: ExportedWraps = {
       wrappingKey: wrappingKeyString,
       wrappedKey: this.#wrappedKey,
@@ -297,16 +308,13 @@ export default class CripToe {
     if (opts?.export) {
       if (opts?.safeURL) {
         const safeURLExport: Wraps<true, true, false> = {
-          wrappingKey: base64.fromArrayBuffer(
-            wrappingKeyBuffer,
-            Boolean("url"),
-          ),
-          wrappedKey: base64.fromArrayBuffer(wrappedKey, Boolean("url")),
+          wrappingKey: base64.fromArrayBuffer(wrappingKeyRaw),
+          wrappedKey: base64.fromArrayBuffer(wrappedKey),
         };
         return safeURLExport as unknown as Wraps<E, S, B>;
       } else if (opts?.toBase64) {
         const base64Export: ExportedWrapsBase64 = {
-          wrappingKey: base64.fromArrayBuffer(wrappingKeyBuffer),
+          wrappingKey: wrappingKeyString,
           wrappedKey: base64.fromArrayBuffer(wrappedKey),
         };
         return base64Export as unknown as Wraps<E, S, B>;
@@ -376,13 +384,16 @@ export default class CripToe {
     } else throw new Error("You are not in a supported environment.");
   })();
 
-  async #parseJWk(JWK: string) {
-    const wrappingKeyJwk = JSON.parse(JWK);
+  async #parseKey(keyBase64: string) {
+    const rawKey = base64.toArrayBuffer(keyBase64);
+    if (rawKey.byteLength !== 32)
+      throw new Error("Invalid AES-KW key: Must be 32 bytes long.");
     return await this.CRYP.importKey(
-      "jwk",
-      wrappingKeyJwk,
+      "raw",
+      rawKey,
       {
         name: "AES-KW",
+        length: 256,
       },
       true,
       ["wrapKey", "unwrapKey"],
@@ -423,13 +434,25 @@ export default class CripToe {
         ["encrypt", "decrypt"],
       );
     } else {
-      return await this.CRYP.importKey(
-        "raw",
-        new TextEncoder().encode(password),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey", "deriveBits"],
+      const derivedKey = await this.CRYP.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: crypto.getRandomValues(new Uint8Array(16)),
+          iterations: 100000,
+          hash: "SHA-256",
+        },
+        await this.CRYP.importKey(
+          "raw",
+          new TextEncoder().encode(password),
+          { name: "PBKDF2" },
+          false,
+          ["deriveKey"],
+        ),
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"],
       );
+      return derivedKey;
     }
   }
 }
