@@ -14,7 +14,7 @@ import {
 import { isBase64, isBase64URL } from "./utils.js";
 
 /** Provides Sha256 hashing and AES-GCM encryption and decryption of strings. For Node.*/
-export default class CripToe {
+export default class CripToe extends base64 {
   /**
    * The message originally provided to the instance encoded into a Uint8Array.
    **/
@@ -28,6 +28,7 @@ export default class CripToe {
     opts?: { silenceWarnings?: boolean },
     /*password?: string,*/
   ) {
+    super(base64)
     if (message.length > 1260 && !opts?.silenceWarnings) {
       console.warn(
         `WARNING: The message supplied to ${this.constructor.name} is possibly too long for a URL.\nTests show that messages longer than 1,260 characters may exceed the maximum recommended length for a URL, which is 2,084 characters.\nlength:\n${message.length}\nmessage:\n${message}`,
@@ -54,6 +55,13 @@ export default class CripToe {
     // can use 'Cripto.random()' to generate salt.
     this.#wrappedKey = undefined;
   }
+
+  // Copied base64 methods
+  fromString = base64.fromString;
+  fromArrayBuffer = base64.fromArrayBuffer;
+  toString = base64.toString;
+  toArrayBuffer = base64.toArrayBuffer;
+  validate = base64.validate;
 
   /**
    * Hashes any string into a Sha256 hash. By default will hash the mesage initially provided to the constructor.
