@@ -200,7 +200,7 @@ export default class CripToe {
       const decryptedText = new TextDecoder("utf-8").decode(decrypted);
       return decryptedText;
     } catch (e: unknown) {
-      console.log(e);
+      console.error(e);
       throw new Error(e as string);
     }
   }
